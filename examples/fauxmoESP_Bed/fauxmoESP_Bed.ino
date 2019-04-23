@@ -16,17 +16,28 @@ fauxmoESP fauxmo;
 
 #define SERIAL_BAUDRATE     115200
 
-#define LED_YELLOW          4
-#define LED_GREEN           5
-#define LED_BLUE            0
-#define LED_PINK            2
-#define LED_WHITE           15
+#define PWM_BED_RIGHT       5  // D1 - IO, SCL
+#define PWM_BED_LEFT        4  // D2 - IO, SDA
+#define PWM_HEADBOARD       14 // D5 - IO, SCK
+#define PIR_RIGHT           0  // D3 - IO, 10k Pull-up
+#define PIR_LEFT            2  // D4 - IO, 10k Pull-up, BUILTIN_LED
 
-#define ID_YELLOW           "yellow lamp"
-#define ID_GREEN            "green lamp"
-#define ID_BLUE             "blue lamp"
-#define ID_PINK             "pink lamp"
-#define ID_WHITE            "white lamp"
+#define ID_BED_RIGHT        "bed right"
+#define ID_BED_LEFT         "bed left"
+#define ID_HEADBOARD        "headboard"
+#define ID_MOTION           "motion"    // Enable motion activation
+
+// Maybe add minimum / maximum values
+
+
+bool stateBedRight = false;
+unsigned char valueBedRight = 0;
+bool stateBedLeft = false;
+unsigned char valueBedLeft = 0;
+bool stateHeadboard = false;
+unsigned char valueHeadboard = 0;
+bool stateMotion = false;
+unsigned char valueMotion = 0; // Maybe use as timeout
 
 // -----------------------------------------------------------------------------
 
@@ -62,17 +73,18 @@ void setup() {
     Serial.println();
     Serial.println();
 
-    // LEDs
-    pinMode(LED_YELLOW, OUTPUT);
-    pinMode(LED_GREEN, OUTPUT);
-    pinMode(LED_BLUE, OUTPUT);
-    pinMode(LED_PINK, OUTPUT);
-    pinMode(LED_WHITE, OUTPUT);
-    digitalWrite(LED_YELLOW, LOW);
-    digitalWrite(LED_GREEN, LOW);
-    digitalWrite(LED_BLUE, LOW);
-    digitalWrite(LED_PINK, LOW);
-    digitalWrite(LED_WHITE, LOW);
+    // LED strips via MOSFET
+    pinMode(PWM_BED_RIGHT, OUTPUT);
+    pinMode(PWM_BED_LEFT,  OUTPUT);
+    pinMode(PWM_HEADBOARD, OUTPUT);
+
+    // PIR motion sensors
+    pinMode(PIR_RIGHT, OUTPUT);
+    pinMode(PIR_LEFT,  OUTPUT);
+
+    analogWrite(PWM_BED_RIGHT, 0);
+    analogWrite(PWM_BED_LEFT,  0);
+    analogWrite(PWM_HEADBOARD, 0);
 
     // Wifi
     wifiSetup();
@@ -94,11 +106,10 @@ void setup() {
     // "Alexa, set yellow lamp to fifty" (50 means 50% of brightness, note, this example does not use this functionality)
 
     // Add virtual devices
-    fauxmo.addDevice(ID_YELLOW);
-    fauxmo.addDevice(ID_GREEN);
-    fauxmo.addDevice(ID_BLUE);
-    fauxmo.addDevice(ID_PINK);
-    fauxmo.addDevice(ID_WHITE);
+    fauxmo.addDevice(ID_BED_RIGHT);
+    fauxmo.addDevice(ID_BED_LEFT);
+    fauxmo.addDevice(ID_HEADBOARD);
+    fauxmo.addDevice(ID_MOTION);
 
     fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
         
@@ -113,16 +124,18 @@ void setup() {
         // Checking for device_id is simpler if you are certain about the order they are loaded and it does not change.
         // Otherwise comparing the device_name is safer.
 
-        if (strcmp(device_name, ID_YELLOW)==0) {
-            digitalWrite(LED_YELLOW, state ? HIGH : LOW);
-        } else if (strcmp(device_name, ID_GREEN)==0) {
-            digitalWrite(LED_GREEN, state ? HIGH : LOW);
-        } else if (strcmp(device_name, ID_BLUE)==0) {
-            digitalWrite(LED_BLUE, state ? HIGH : LOW);
-        } else if (strcmp(device_name, ID_PINK)==0) {
-            digitalWrite(LED_PINK, state ? HIGH : LOW);
-        } else if (strcmp(device_name, ID_WHITE)==0) {
-            digitalWrite(LED_WHITE, state ? HIGH : LOW);
+        if (strcmp(device_name, ID_BED_RIGHT)==0) {
+            stateBedRight = state;
+            valueBedRight = value;
+        } else if (strcmp(device_name, ID_BED_LEFT)==0) {
+            stateBedLeft = state;
+            valueBedLeft = value;
+        } else if (strcmp(device_name, ID_HEADBOARD)==0) {
+            stateHeadboard = state;
+            valueHeadboard = value;
+        } else if (strcmp(device_name, ID_MOTION)==0) {
+            stateMotion = state;
+            valueMotion = value;
         }
 
     });
